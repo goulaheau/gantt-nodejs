@@ -1,0 +1,16 @@
+{
+  "name": "gantt-nodejs",
+  "version": "1.0.0",
+  "description": "",
+  "repository": "https://github.com/goulaheau/gantt-nodejs.git",
+  "main": "server.js",
+  "dependencies": {
+    "body-parser": "^1.15.0",
+    "date-format-lite": "^0.7.4",
+    "express": "^4.13.4",
+    "moment": "^2.18.1",
+    "mongoose": "^4.9.3",
+    "mysql": "^2.10.2"
+  },
+  "author": "BobbyTeam"
+}
