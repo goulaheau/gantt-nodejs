@@ -1,12 +1,13 @@
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-var ganttLinkSchema = new Schema({
-  source: { type: String, required: true },
-  target: { type: String, required: true },
-  type: { type: String, required: true }
+const ganttLinkSchema = new Schema({
+    source: { type: String, required: true },
+    target: { type: String, required: true },
+    type: { type: String, required: true },
+    project_id: { type: String, required: true }
 });
 
-var GanttLink = mongoose.model('GanttLink', ganttLinkSchema);
+const GanttLink = mongoose.model('GanttLink', ganttLinkSchema);
 
 module.exports = GanttLink;

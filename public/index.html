@@ -1,21 +1,78 @@
-<!DOCTYPE html>
-<head>
-    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-</head>
-    <script src="./codebase/sources/dhtmlxgantt.js" type="text/javascript" charset="utf-8"></script>
-    <link rel="stylesheet" href="./codebase/dhtmlxgantt.css" type="text/css" charset="utf-8">
-    <style type="text/css">
-        html, body{ height:100%; padding:0px; margin:0px; overflow: hidden;}
-    </style>
-<body>
-    <div id="gantt_here" style='width:100%; height:100%;'></div>
-    <script type="text/javascript">
-        gantt.config.xml_date = "%Y-%m-%d %H:%i:%s";
-        gantt.init("gantt_here");
-        gantt.load("/data");
+<!doctype html>
+<html lang="en" ng-app>
+  <head>
+    <title>Projets</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/bootstrap-responsive.min.css">
+    <script>
+      function ProjectController($scope) {
+        var socket = io.connect();
 
-		var dp = new gantt.dataProcessor("/data");
-        dp.init(gantt);
-        dp.setTransactionMode("REST");
+        $scope.projects = [];
+        $scope.name = '';
+        
+        socket.on('projectsLoaded', function (projects) { 
+          $scope.projects = projects;
+          $scope.$apply();
+        });
+
+        $scope.addProject = function () {
+          socket.emit('addProject', $scope.name);
+          $scope.name = '';
+        };
+        
+        socket.on('projectAdded', function (project) {
+          $scope.projects.push(project);
+          $scope.$apply();
+        });
+      }
     </script>
-</body>
+  </head>
+  <body>
+    <div class="navbar navbar-fixed-top navbar-inverse">
+      <div class="navbar-inner">
+        <div class="pull-right">
+          <a href="/" class="brand">Gestion de Projet</a>
+        </div>
+      </div>
+    </div>
+    <div class="container" ng-controller="ProjectController">
+      <div class="page-header">
+        <h1>Projets</h1>
+      </div>
+      <div class="row controls">
+        <form ng-submit="addProject()">
+          <div class="input-append">
+            <input type="text" ng-model="name" placeholder="Nom du Projet">
+            <input type="submit" class="btn btn-primary" value="Ajouter un Projet" ng-disabled="!name">
+          </div>
+        </form>
+      </div>
+      <div class="row">
+        <div class="col-sm-12">
+          <table class="table table-striped table-bordered">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Gantt</th>
+                <th>Chat</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr ng-repeat="project in projects">
+                <td>{{project.name}}</td>
+                <td><a ng-href="/gantt/{{project._id}}">Gantt</a></td>
+                <td><!--<a ng-href="/chat/{{project._id}}">Chat</a>--></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/angular.min.js"></script>
+  </body>
+</html>
