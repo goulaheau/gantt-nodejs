@@ -12,7 +12,17 @@
     "moment": "^2.18.1",
     "mongoose": "^4.9.3",
     "mysql": "^2.10.2",
-    "socket.io": "^1.7.3"
+    "socket.io": "^1.7.3",
+    "bcryptjs": "^2.1.0",
+    "express-jwt": "^3.0.1",
+    "express-session": "^1.11.3",
+    "jsonwebtoken": "^5.0.2",
+    "lodash": "^3.10.0",
+    "mongodb": "^2.1.16",
+    "mongoskin": "^2.1.0",
+    "q": "^1.4.1",
+    "request": "^2.58.0",
+    "rootpath": "^0.1.2"
   },
   "author": "BobbyTeam"
 }

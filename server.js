@@ -1,3 +1,7 @@
+(function(){
+"use strict";
+ 
+
 // Requires
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -11,17 +15,37 @@ require("date-format-lite");
 const server = http.createServer(app);
 const io = socketio.listen(server);
 mongoose.connect('mongodb://localhost/gantt');
+require('rootpath')();
+const session = require('express-session');
+const expressJwt = require('express-jwt');
+const config = require('config.json');
 
-// Permet de router vers une vue en ejs
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, '/public'));
+app.set('views', __dirname + '/public');
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(session({ secret: config.secret, resave: false, saveUninitialized: true }));
+
+// use JWT auth to secure the api
+app.use('/api', expressJwt({ secret: config.secret }).unless({ path: ['/api/users/authenticate', '/api/users/register'] }));
+
+// routes utilisateur
+app.use('/login', require('./controllers/login.controller'));
+app.use('/register', require('./controllers/register.controller'));
+app.use('/app', require('./controllers/app.controller'));
+app.use('/api/users', require('./controllers/api/users.controller'));
+
+// make '/app' default route
+app.get('/', (req, res) => {
+    return res.redirect('/app');
+});
 
 // Permet de rediriger la requete principale vers index.html
 app.use(express.static(path.join(__dirname, "public")));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Declaration du tableau contenant les sockets des utilisateurs connectes
-var sockets = [];
+let sockets = [];
 
 /***********************/ 
 /* Gestion des Projets */
@@ -30,12 +54,12 @@ var sockets = [];
 const Project = require('./models/project');
 
 // A la connection sur l'index.html
-io.on('connection', function (socket) {
+io.on('connection', (socket) => {
 	// Ajout du socket de l'utilisateurs au tableau
 	sockets.push(socket);
 	
 	// Recuperation de tous les Projets en BDD
-	Project.find({}, function (err, projects) {
+	Project.find({}, (err, projects) => {
 		if (err) throw err;
 		
 		// Broadcast du chargement des Projets et envoie des Projets 
@@ -43,31 +67,31 @@ io.on('connection', function (socket) {
 	});
 	
 	// A l'ajout d'un Projet
-	socket.on('addProject', function (name) {
-		var name = String(name || '');
+	socket.on('addProject', (name) => {
+		let nameChecked = String(name || '');
 		
-		if (!name) {
+		if (!nameChecked) {
 			return;
 		}
 		
 		// Creation d'un nouveau Projet
-		var newProject = Project({
-			name: name
+		let newProject = Project({
+			name: nameChecked
 		});
 	
 		// Sauvegarde du Projet en BDD
-		newProject.save(function (err, result) {
+		newProject.save((err, project) => {
 			if (err) throw err;
 			
 			// Broacast de l'ajout d'un Projet et envoie du Projet
-			broadcast('projectAdded', result);
+			broadcast('projectAdded', project);
 		});
 	});
 });
 
 // Emet les evenements et des donnees vers tous les utilisateurs
 function broadcast(event, data) {
-  sockets.forEach(function (socket) {
+  sockets.forEach((socket) => {
     socket.emit(event, data);
   });
 }
@@ -75,33 +99,33 @@ function broadcast(event, data) {
 /**********************/ 
 /* Gestion des Gantts */
 /**********************/ 
-var GanttTask = require('./models/gantt-task');
-var GanttLink = require('./models/gantt-link');
+const GanttTask = require('./models/gantt-task');
+const GanttLink = require('./models/gantt-link');
 
-var project_id = null;
+let project_id = null;
 
 // Rendu de la page gantt.ejs en passant en parametre l'id du Projet
-app.get("/gantt/:project_id", function (req, res) {
-	var project_id = req.params.project_id;
+app.get("/gantt/:project_id", (req, res) => {
+	project_id = req.params.project_id;
 	res.render('gantt', { project_id: project_id });
 });
 
 // Recuperation des donnees du Gantt du Projet correspondant a l'id
-app.get("/data/:project_id", function (req, res) {
+app.get("/data/:project_id", (req, res) => {
 	project_id = req.params.project_id;
 	
-	GanttTask.find({project_id: project_id}, function(err, rows) {
+	GanttTask.find({project_id: project_id}, (err, rows) => {
 		if (err) throw err;
 		
-	    GanttLink.find({}, function(err, links) {
+	    GanttLink.find({}, (err, links) => {
 	    	if (err) throw err;
 	    	
 	    	for (var i in rows) {
 	    		rows[i] = rows[i].toObject();
 	    		
 	    		// Conversion du type Date de Mongo vers un autre format
-				var date = moment(rows[i].start_date);
-				rows[i].start_date = date.format("YYYY-MM-DD");
+				rows[i].start_date = moment(rows[i].start_date).format("YYYY-MM-DD");
+				
 				rows[i].open = true;
 				
 				// Recuperation de l'id de Mongo
@@ -121,10 +145,10 @@ app.get("/data/:project_id", function (req, res) {
 });
 
 // Creation d'une tache
-app.post("/data/task", function (req, res) {
-	var task = getTask(req.body);
+app.post("/data/task", (req, res) => {
+	let task = getTask(req.body);
 	
-	var newGanttTask = GanttTask({
+	let newGanttTask = GanttTask({
 		text: task.text,
 		start_date: task.start_date,
 		duration: task.duration,
@@ -133,7 +157,7 @@ app.post("/data/task", function (req, res) {
 		project_id: task.project_id //Ajout de l'attribut project_id
 	});
 	
-	newGanttTask.save(function (err, result) {
+	newGanttTask.save((err, result) => {
 		if (err) throw err;
 		
 		sendResponse(res, "inserted", result ? result._id : null, err);
@@ -141,11 +165,11 @@ app.post("/data/task", function (req, res) {
 });
 
 // Modification d'une tache
-app.put("/data/task/:id", function (req, res) {
-	var sid = req.params.id,
+app.put("/data/task/:id", (req, res) => {
+	let sid = req.params.id,
 		task = getTask(req.body);
 
-	GanttTask.findByIdAndUpdate(sid, task, function (err, result) {
+	GanttTask.findByIdAndUpdate(sid, task, (err, result) => {
 		if (err) throw err;
 	
 		sendResponse(res, "updated", null, err);
@@ -153,10 +177,10 @@ app.put("/data/task/:id", function (req, res) {
 });
 
 // Suppression d'une tache
-app.delete("/data/task/:id", function (req, res) {
-	var sid = req.params.id;
+app.delete("/data/task/:id", (req, res) => {
+	let sid = req.params.id;
 	
-	GanttTask.findByIdAndRemove(sid, function (err) {
+	GanttTask.findByIdAndRemove(sid, (err) => {
 		if (err) throw err;
 	  
 		sendResponse(res, "deleted", null, err);
@@ -164,17 +188,17 @@ app.delete("/data/task/:id", function (req, res) {
 });
 
 // Creation d'un Lien
-app.post("/data/link", function (req, res) {
-	var link = getLink(req.body);
+app.post("/data/link", (req, res) => {
+	let link = getLink(req.body);
 
-	var newGanttLink = GanttLink({
+	let newGanttLink = GanttLink({
 		source: link.source,
 		target: link.target,
 		type: link.type,
 		project_id: link.project_id // Ajout de l'attribut project_id
 	});
 	
-	newGanttLink.save(function (err, result) {
+	newGanttLink.save((err, result) => {
 		if (err) throw err;
 		
 		sendResponse(res, "inserted", result ? result._id : null, err);
@@ -182,11 +206,11 @@ app.post("/data/link", function (req, res) {
 });
 
 // Modification d'un lien
-app.put("/data/link/:id", function (req, res) {
-	var sid = req.params.id,
+app.put("/data/link/:id", (req, res) => {
+	let sid = req.params.id,
 		link = getLink(req.body);
 
-	GanttLink.findByIdAndUpdate(sid, link, function (err, result) {
+	GanttLink.findByIdAndUpdate(sid, link, (err, result) => {
 	  if (err) throw err;
 	
 	  sendResponse(res, "updated", null, err);
@@ -194,10 +218,10 @@ app.put("/data/link/:id", function (req, res) {
 });
 
 // Suppression d'un lien
-app.delete("/data/link/:id", function (req, res) {
-	var sid = req.params.id;
+app.delete("/data/link/:id", (req, res) => {
+	let sid = req.params.id;
 	
-	GanttLink.findByIdAndRemove(sid, function (err) {
+	GanttLink.findByIdAndRemove(sid, (err) => {
 		if (err) throw err;
 	  
 		sendResponse(res, "deleted", null, err);
@@ -229,7 +253,6 @@ function getLink(data) {
 // Envoie une Reponse dans le bon format pour les JS du Gaant
 function sendResponse(res, action, tid, error) {
 	if (error) {
-		console.log(error);
 		action = "error";
 	}
 
@@ -244,7 +267,9 @@ function sendResponse(res, action, tid, error) {
 }
 
 // Lancement de l'ecoute du Serveur
-server.listen(process.env.PORT || 3000, process.env.IP || "0.0.0.0", function(){
-    var addr = server.address();
+server.listen(process.env.PORT || 3000, process.env.IP || "0.0.0.0", () => {
+    let addr = server.address();
     console.log("Server listening at", addr.address + ":" + addr.port);
 });
+ 
+})()
